@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VR Video Uploader with Full-Screen Split Mode</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e1e;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 10px;
+    }
+
+    h1 {
+      font-size: 1.5em;
+      margin-bottom: 15px;
+    }
+
+    #upload-section {
+      margin: 10px auto;
+      padding: 15px;
+      background-color: #333;
+      border-radius: 10px;
+      max-width: 100%;
+    }
+
+    input[type="text"],
+    textarea,
+    input[type="file"],
+    input[type="url"] {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 5px;
+      background-color: #444;
+      color: #fff;
+      font-size: 1em;
+    }
+
+    button {
+      padding: 12px 20px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px;
+      font-size: 1em;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #video-section {
+      margin-top: 20px;
+      display: none;
+    }
+
+    #info-section {
+      margin: 10px auto;
+      max-width: 100%;
+      background-color: #444;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: left;
+    }
+
+    #video-container {
+      position: relative;
+      margin: 10px auto;
+      width: 100%;
+      max-width: 100%;
+      background-color: #000;
+    }
+
+    video,
+    iframe {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    #split-container {
+      display: none;
+      gap: 5px;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    #split-container video {
+      width: 50%;
+    }
+
+    .full-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .full-screen video {
+      width: 50%;
+      height: 100%;
+    }
+
+    .rotate-video {
+      transform: rotate(90deg);
+      transform-origin: center;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.2em;
+      }
+
+      button {
+        font-size: 0.9em;
+        padding: 10px;
+      }
+
+      .full-screen {
+        flex-direction: column;
+      }
+
+      .full-screen video {
+        width: 100%;
+        height: 50%;
+      }
+
+      #split-container video {
+        width: 100%;
+      }
+
+      .full-screen video {
+        transform: rotate(90deg);
+        transform-origin: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Upload Video with VR Split Mode</h1>
+
+  <!-- Upload Section -->
+  <div id="upload-section">
+    <input type="text" id="title" placeholder="Enter Video Title">
+    <textarea id="description" rows="3" placeholder="Enter Video Description"></textarea>
+    <input type="file" id="video-upload" accept="video/*">
+    <input type="url" id="video-url" placeholder="Enter Video URL (YouTube supported)">
+    <button id="upload-btn">Upload Video</button>
+    <button id="remove-btn" style="display: none; background-color: #dc3545;">Remove Video</button>
+  </div>
+
+  <!-- Video Section -->
+  <div id="video-section">
+    <div id="info-section">
+      <h2 id="video-title"></h2>
+      <p id="video-description"></p>
+    </div>
+    <div id="video-container">
+      <video id="main-video" controls></video>
+      <iframe id="youtube-video" src="" frameborder="0" allowfullscreen style="display: none;"></iframe>
+      <div id="split-container" class="full-screen">
+        <video id="left-video" controls muted></video>
+        <video id="right-video" controls muted></video>
+      </div>
+    </div>
+    <button id="vr-btn">Toggle VR Split-Screen</button>
+  </div>
+
+  <script>
+    const uploadBtn = document.getElementById('upload-btn');
+    const videoUpload = document.getElementById('video-upload');
+    const videoUrlInput = document.getElementById('video-url');
+    const titleInput = document.getElementById('title');
+    const descriptionInput = document.getElementById('description');
+    const videoSection = document.getElementById('video-section');
+    const mainVideo = document.getElementById('main-video');
+    const youtubeVideo = document.getElementById('youtube-video');
+    const leftVideo = document.getElementById('left-video');
+    const rightVideo = document.getElementById('right-video');
+    const splitContainer = document.getElementById('split-container');
+    const videoTitle = document.getElementById('video-title');
+    const videoDescription = document.getElementById('video-description');
+    const vrBtn = document.getElementById('vr-btn');
+    const removeBtn = document.getElementById('remove-btn');
+    let isVRMode = false;
+    let isYouTubeVideo = false;
+
+    // Upload video and set title/description
+    uploadBtn.addEventListener('click', () => {
+      let videoURL = null;
+
+      if (videoUpload.files.length > 0) {
+        const file = videoUpload.files[0];
+        videoURL = URL.createObjectURL(file);
+        isYouTubeVideo = false;
+      } else if (videoUrlInput.value) {
+        videoURL = videoUrlInput.value;
+        const youtubeMatch = videoURL.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)/);
+        if (youtubeMatch) {
+          youtubeVideo.src = `https://www.youtube.com/embed/${youtubeMatch[1]}?enablejsapi=1`;
+          isYouTubeVideo = true;
+        } else {
+          alert('Please enter a valid YouTube URL.');
+          return;
+        }
+      }
+
+      if (videoURL) {
+        videoTitle.textContent = titleInput.value || 'Untitled Video';
+        videoDescription.textContent = descriptionInput.value || 'No description provided.';
+
+        if (isYouTubeVideo) {
+          youtubeVideo.style.display = 'block';
+          mainVideo.style.display = 'none';
+        } else {
+          mainVideo.src = videoURL;
+          mainVideo.style.display = 'block';
+          youtubeVideo.style.display = 'none';
+          leftVideo.src = videoURL;
+          rightVideo.src = videoURL;
+        }
+
+        videoSection.style.display = 'block';
+        removeBtn.style.display = 'inline-block';
+      } else {
+        alert('Please select a video file or enter a video URL.');
+      }
+    });
+
+    // Remove video and reset fields
+    removeBtn.addEventListener('click', () => {
+      mainVideo.src = '';
+      leftVideo.src = '';
+      rightVideo.src = '';
+      youtubeVideo.src = '';
+      videoSection.style.display = 'none';
+      removeBtn.style.display = 'none';
+      videoUpload.value = '';
+      videoUrlInput.value = '';
+      titleInput.value = '';
+      descriptionInput.value = '';
+    });
+
+    // Toggle VR Split-Screen Mode
+    vrBtn.addEventListener('click', () => {
+      isVRMode = !isVRMode;
+      if (isVRMode) {
+        splitContainer.style.display = 'flex';
+        mainVideo.style.display = 'none';
+        document.documentElement.requestFullscreen();
+
+        leftVideo.currentTime = mainVideo.currentTime;
+        rightVideo.currentTime = mainVideo.currentTime;
+        leftVideo.play();
+        rightVideo.play();
+      } else {
+        splitContainer.style.display = 'none';
+        mainVideo.style.display = 'block';
+        document.exitFullscreen();
+
+        leftVideo.pause();
+        rightVideo.pause();
+      }
+    });
+
+    // Handle exit from full-screen
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && isVRMode) {
+        splitContainer.style.display = 'none';
+        mainVideo.style.display = 'block';
+        isVRMode = false;
+      }
+    });
+  </script>
+
+</body>
+</html>
